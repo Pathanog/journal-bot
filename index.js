@@ -8,11 +8,15 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ChannelType,
-  PermissionsBitField
+  PermissionsBitField,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require("discord.js");
 
 const { getGuild, setGuild } = require("./utils/settings");
 const startServer = require("./server");
+const config = require("./config.json");
 
 startServer();
 
@@ -24,8 +28,45 @@ const client = new Client({
   ]
 });
 
-client.once("ready", () => {
+/* 🔹 AUTO REGISTER SLASH COMMANDS (RENDER FREE SAFE) */
+async function registerCommands() {
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("journal")
+      .setDescription("Journal management")
+      .addSubcommand(sc =>
+        sc.setName("adduser")
+          .setDescription("Add user to private journal")
+          .addUserOption(o =>
+            o.setName("user")
+              .setDescription("User to add")
+              .setRequired(true)
+          )
+      )
+      .addSubcommand(sc =>
+        sc.setName("removeuser")
+          .setDescription("Remove user from private journal")
+          .addUserOption(o =>
+            o.setName("user")
+              .setDescription("User to remove")
+              .setRequired(true)
+          )
+      )
+  ].map(c => c.toJSON());
+
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+  await rest.put(
+    Routes.applicationCommands(config.clientId),
+    { body: commands }
+  );
+
+  console.log("✅ Slash commands registered");
+}
+
+client.once("ready", async () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
+  await registerCommands();
 });
 
 /* PREFIX COMMANDS */
@@ -72,7 +113,6 @@ client.on("messageCreate", async message => {
 /* INTERACTIONS */
 client.on("interactionCreate", async interaction => {
 
-  /* BUTTON → MODAL */
   if (interaction.isButton()) {
     if (!interaction.customId.startsWith("journal_")) return;
 
@@ -100,14 +140,12 @@ client.on("interactionCreate", async interaction => {
     return interaction.showModal(modal);
   }
 
-  /* MODAL SUBMIT */
   if (interaction.isModalSubmit()) {
     const forumId = getGuild(interaction.guild.id).forum;
     if (!forumId)
       return interaction.reply({ content: "❌ Forum not set.", ephemeral: true });
 
     const forum = await interaction.guild.channels.fetch(forumId);
-
     const title = interaction.fields.getTextInputValue("title");
     const content = interaction.fields.getTextInputValue("content");
 
@@ -134,7 +172,6 @@ client.on("interactionCreate", async interaction => {
     });
   }
 
-  /* SLASH COMMANDS */
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName !== "journal") return;
 
