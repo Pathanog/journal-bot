@@ -10,14 +10,14 @@ function save(data) {
   fs.writeFileSync(path, JSON.stringify(data, null, 2));
 }
 
-function getGuild(id) {
-  return load()[id] || {};
+function getGuild(guildId) {
+  return load()[guildId] || {};
 }
 
-function setGuild(id, key, value) {
+function setGuild(guildId, key, value) {
   const data = load();
-  if (!data[id]) data[id] = {};
-  data[id][key] = value;
+  if (!data[guildId]) data[guildId] = {};
+  data[guildId][key] = value;
   save(data);
 }
 
